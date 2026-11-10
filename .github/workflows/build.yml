@@ -1,0 +1,52 @@
+name: Build Driver and DLL
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # Устанавливаем Visual Studio с нужными компонентами (MSVC, SDK)
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    # Устанавливаем Windows Driver Kit (WDK)
+    - name: Install WDK
+      run: |
+        # Скачиваем установщик WDK через winget (он есть на Windows Server)
+        winget install --id Microsoft.WindowsWDK.10.0.22621 --accept-source-agreements --accept-package-agreements
+        
+    # Собираем драйвер (.sys) через MSVC с флагами ядра
+    - name: Build Driver (SYS)
+      run: |
+        # Ищем путь к WDK (обычно это C:\Program Files (x86)\Windows Kits\10)
+        $wdkPath = "C:\Program Files (x86)\Windows Kits\10"
+        
+        # Компилируем драйвер с флагами ядра (/kernel)
+        cl /kernel /GS- /c blocker.c /I"%wdkPath%\Include\10.0.22621.0\km" /I"%wdkPath%\Include\10.0.22621.0\shared"
+        
+        # Линкуем в .sys файл
+        link /DRIVER /ENTRY:DriverEntry /SUBSYSTEM:NATIVE /OUT:blocker.sys blocker.obj "%wdkPath%\Lib\10.0.22621.0\km\x64\ntoskrnl.lib" "%wdkPath%\Lib\10.0.22621.0\km\x64\hal.lib" "%wdkPath%\Lib\10.0.22621.0\km\x64\wdm.lib" "%wdkPath%\Lib\10.0.22621.0\km\x64\BufferOverflowK.lib" "%wdkPath%\Lib\10.0.22621.0\km\x64\ntstrsafe.lib"
+
+    # Собираем DLL (.dll)
+    - name: Build DLL (unlock)
+      run: |
+        cl /LD unlock.c /link /OUT:unlock.dll advapi32.lib
+
+    # Загружаем артефакты на GitHub
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: blocker-package
+        path: |
+          blocker.sys
+          unlock.dll
+          blocker.inf
