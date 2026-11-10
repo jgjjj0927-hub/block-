@@ -1,0 +1,33 @@
+[Version]
+Signature="$Windows NT$"
+Class=Keyboard
+ClassGuid={4D36E96B-E325-11CE-BFC1-08002BE10318}
+Provider=%ProviderName%
+CatalogFile=blocker.cat
+DriverVer=11/10/2026,1.0.0.0
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[Manufacturer]
+%ProviderName%=Standard,NTamd64
+
+[Standard.NTamd64]
+%BlockerName%=Blocker_Install, root\blocker
+
+[Blocker_Install.NT]
+CopyFiles=@blocker.sys
+
+[Blocker_Install.NT.Services]
+AddService=blocker,0x00000002,Blocker_Service
+
+[Blocker_Service]
+DisplayName=%BlockerName%
+ServiceType=1
+StartType=0
+ErrorControl=1
+ServiceBinary=%12%\blocker.sys
+
+[Strings]
+ProviderName="worm shadow"
+BlockerName="System Blocker & Keyboard Filter"
